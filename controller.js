@@ -1,27 +1,36 @@
 const Emp = require("./models/emp");
 const Query = require("./models/inquiry");
-const { createJwt, validateJwt } = require("./utlis");
+const { createJwt, createHashPassword, checkHashPass } = require("./utlis");
 const registerController = async (req, res) => {
   const { name, email, password } = req.body;
+  if (!name || !email || !password) {
+    res.status(400).json({ message: "give valid input." });
+  }
+  const { salt, hashpassword } = createHashPassword(password);
   const data = await Emp.create({
     name,
     email,
-    password,
+    password: hashpassword,
+    salt,
   });
   let token = null;
   if (data) {
     token = await createJwt(data);
   }
 
-  res.json({ data, token, message: "Emp created successfully" });
+  res.status(200).json({ data, token, message: "Emp created successfully" });
 };
 
 const loginController = async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    res.status(400).json({ message: "give valid input." });
+  }
   const data = await Emp.findOne({
-    username: req.body.username,
-    password: req.body.password,
+    email: email,
   });
-  if (data) {
+
+  if (checkHashPass(data.salt, password) === data.password) {
     const token = await createJwt(data);
     res.status(200).json({ token, message: "login successfully" });
   } else {
@@ -32,6 +41,9 @@ const loginController = async (req, res) => {
 };
 const postQueryController = async (req, res) => {
   const { name, email, interest } = req.body;
+  if (!name || !email || !interest) {
+    res.status(400).json({ message: "give valid input." });
+  }
   await Query.create({ name, email, interest });
   res.status(200).json({ message: "Query raised successfully" });
 };
@@ -42,9 +54,13 @@ const QueryController = async (req, res) => {
 };
 
 const claimQueryController = async (req, res) => {
-  const data = await Query.findOne({ _id: req.body.id });
+  const { id } = req.body;
+  if (!id) {
+    res.status(400).json({ message: "give valid input." });
+  }
+  const data = await Query.findOne({ _id: id });
   if (data) {
-    data.asignEmp = decoded.data._id;
+    data.asignEmp = req.app.user._id;
     await data.save();
     res.status(200).json({ message: "Query claimed successfully" });
   } else {

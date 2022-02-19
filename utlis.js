@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-
+const crypto = require("crypto");
 const createJwt = async (data) => {
   try {
     const token = await jwt.sign(
@@ -24,4 +24,19 @@ const validateJwt = async (token) => {
   }
 };
 
-module.exports = { createJwt, validateJwt };
+const createHashPassword = (password) => {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hashpassword = crypto
+    .pbkdf2Sync(password, salt, 1000, 64, `sha512`)
+    .toString(`hex`);
+
+  return { salt, hashpassword };
+};
+
+const checkHashPass = (salt, password) => {
+  const hashpassword = crypto
+    .pbkdf2Sync(password, salt, 1000, 64, `sha512`)
+    .toString(`hex`);
+  return hashpassword;
+};
+module.exports = { createJwt, validateJwt, createHashPassword, checkHashPass };
